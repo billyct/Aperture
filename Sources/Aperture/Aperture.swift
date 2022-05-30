@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AppKit
 
 public final class Aperture: NSObject {
 	public enum Error: Swift.Error {
@@ -35,7 +36,8 @@ public final class Aperture: NSObject {
 		input: AVCaptureInput,
 		output: AVCaptureMovieFileOutput,
 		audioDevice: AVCaptureDevice? = nil,
-		videoCodec: AVVideoCodecType? = nil
+		videoCodec: AVVideoCodecType? = nil,
+		screenId: CGDirectDisplayID = .main
 	) throws {
 		self.destination = destination
 		self.session = AVCaptureSession()
@@ -74,7 +76,28 @@ public final class Aperture: NSObject {
 		if let videoCodec = videoCodec {
 			let connection = try output.connection(with: .video)
 				.unwrapOrThrow(Error.couldNotSetVideoCodec)
-			output.setOutputSettings([AVVideoCodecKey: videoCodec], for: connection)
+
+            var videoCompressionProperties: [String: Any] = [:]
+            if videoCodec == AVVideoCodecType.h264 {
+				let screenInput = input as! AVCaptureScreenInput
+				var inputHeight = screenInput.cropRect.height
+
+				if inputHeight.isZero {
+					let screen = NSScreen.screens.first(where: { $0.id == screenId})
+					inputHeight = screen!.frame.height
+				}
+
+                videoCompressionProperties = [
+                    AVVideoAverageBitRateKey: recommendedBitRate(for: inputHeight),
+                    AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                    AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC
+                ]
+            }
+
+            output.setOutputSettings([
+                AVVideoCodecKey: videoCodec,
+                AVVideoCompressionPropertiesKey: videoCompressionProperties
+            ], for: connection)
 		}
 
 		super.init()
@@ -123,7 +146,8 @@ public final class Aperture: NSObject {
 			input: input,
 			output: AVCaptureMovieFileOutput(),
 			audioDevice: audioDevice,
-			videoCodec: videoCodec
+			videoCodec: videoCodec,
+			screenId: screenId
 		)
 	}
 

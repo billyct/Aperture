@@ -96,3 +96,17 @@ extension Optional {
 func sleep(for duration: TimeInterval) {
 	usleep(useconds_t(duration * Double(USEC_PER_SEC)))
 }
+
+
+func recommendedBitRate(for height: CGFloat) -> Int {
+    switch height {
+    case 0..<481:
+        return 1000_000
+    case 480..<721:
+        return 2500_000
+    case 720..<1081:
+        return 5000_000
+    default:
+        return 8000_000
+    }
+}
